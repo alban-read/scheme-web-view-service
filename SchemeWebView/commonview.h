@@ -39,6 +39,8 @@ extern std::deque<std::string> messages;
 extern std::deque<std::string> commands;
 void cancel_commands();
 void cancel_messages();
+extern bool cancelling;
+void cancel_pressed();
 
 namespace Assoc {
 	ptr cons_sfixnum(const char* symbol, const int value, ptr l);

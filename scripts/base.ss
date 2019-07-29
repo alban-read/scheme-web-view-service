@@ -28,13 +28,15 @@
  (lambda (ms)
     ((foreign-procedure "scheme_yield" (int) ptr) ms)))
 
-(define web-exec
-  (lambda (script fname)
-    ((foreign-procedure "web_exec" (string string) ptr) script fname)))
+
 
 (define web-message
   (lambda (msg)
     ((foreign-procedure "scheme_post_message" (string) ptr) msg )))
+
+(define web-value
+  (lambda (script vname)
+    ((foreign-procedure "web_value" (string string) ptr) script vname)))
 
 
 (define web-capture
@@ -50,6 +52,11 @@
   (lambda (script)
     (web-message (string-append "::api:8:" script))))
 
+
+(define web-exec
+  (lambda (script fname)
+    (web-message (string-append "::api:9:" fname "::" script))))
+
  (define web-load-document
   (lambda (fname) 
         ((foreign-procedure "web_load_document" (string ) ptr) fname )))
@@ -59,7 +66,7 @@
   (syntax-rules ()
     [(_ n body ...)
      (let loop ([i n])  
-       (when (< 0 i) 
+       (when (and (< 0 i) (not (escape-pressed?)))
          body
          ...
          (loop (- i 1))))]))
@@ -320,8 +327,15 @@
 (vector-set! api-calls 6 api-call-save-evaluator-text)
 
  
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; change the port here as required.
+ ;;;;
 
-(homepage "http://localhost:8087/editor.html")
-(startserver 8087 "docs")  
+ 
+;; graphics 2d
+;; 
+
+(define draw-line
+  (lambda (x y x1 y1 w)
+    (let ([cmd (format
+       (string-append "draw_line ( ~s, ~s, ~s, ~s, ~s)")
+            x y x1 y1 w)])
+      (web-eval cmd))))

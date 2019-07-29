@@ -1,0 +1,419 @@
+﻿<html>
+
+<head>
+    <title>Editor Panes</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="lib/codemirror.css">
+    <link rel="stylesheet" href="lib/StyleSheetA.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+        integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+        integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+        crossorigin="anonymous"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="jquery-resizable.js"></script>
+
+
+
+    <script>
+        $(".panel-left").resizable({
+            handleSelector: ".splitter",
+            resizeHeight: false
+        });
+        $(".panel-top").resizable({
+            handleSelector: ".splitter-horizontal",
+            resizeWidth: false
+        });
+    </script>
+
+    <script>
+        const eventSource = new EventSource('/eventsrc');
+        eventSource.onmessage = (e) => {
+            data = e.data;
+            if (data != "") {
+                handle_events(atob(data));
+            }
+        };
+    </script>
+
+</head>
+
+<body onload="pageloaded()">
+    <div class="page-container">
+        <div class="btn-group" style="margin-left: 12px;">
+            <button class="btn btn-light btn-sm">
+                <a href="https://www.scheme.com/tspl4/" target="_blank">
+                    <i class="fa fa-book" aria-hidden="true" style="color: #5c809e"></i>
+                </a>
+            </button>
+            <button class="btn btn-light btn-sm">
+                <a href="#" onclick='evaluateexpression();return false;'>
+                    <i class="fa fa-play" aria-hidden="true" style="color: #5c809e"></i>
+                </a>
+            </button>
+            <button class="btn btn-light btn-sm">
+
+                <a href="#" onclick='refreshpage();return false;'>
+                    <i class="fa fa-refresh" aria-hidden="true" style="color: #5c809e"></i>
+                </a>
+            </button>
+
+            <button class="btn btn-light btn-sm">
+                <a href="#" onclick='cancelpressed();return false;'>
+                    <i class="fa fa-stop-circle" aria-hidden="true" style="color: #5c809e"></i>
+                </a>
+            </button>
+
+            <button class="btn btn-light btn-sm">
+                <a href="EditorLayoutImage.html">
+                    <i aria-hidden="true" style="color: #5c809e">Image</i>
+                </a>
+            </button>
+
+            <button class="btn btn-light btn-sm">
+                <a href="EditorLayoutDocuments.html">
+                    <i aria-hidden="true" style="color: #5c809e">Docs</i>
+                </a>
+            </button>
+
+
+        </div>
+
+
+        <div class="bg-image">
+            <div class="panel-container-vertical">
+                <div class="panel-top">
+                    <textarea id='expression'>;;expressions</textarea>
+                </div>
+                <div class="splitter-horizontal">
+                </div>
+                <div class="panel-bottom">
+                    <div class="panel-container">
+                        <div class="panel-left">
+                            <textarea id='result'></textarea>
+                        </div>
+                        <div class="splitter">
+                        </div>
+                        <div class="panel-right">
+                            <textarea id='transcript' width='100%'></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
+<script>
+    $(".panel-left").resizable({
+        handleSelector: ".splitter",
+        resizeHeight: false
+    });
+    $(".panel-top").resizable({
+        handleSelector: ".splitter-horizontal",
+        resizeWidth: false
+    });
+</script>
+
+<script src="lib/codemirror.js"></script>
+<script src="addon/edit/closebrackets.js"></script>
+<script src="addon/edit/matchbrackets.js"></script>
+<script src="mode/scheme/scheme.js"></script>
+<script>
+
+    // editor application script..
+    function reqTranscriptListener() {
+        if (this.responseText == "timed_out:busy") {
+            transcript_editor.setValue(
+                localStorage.getItem("lastTranscript"));
+        } else {
+            transcript_editor.setValue(this.responseText);
+            localStorage.setItem("lastTranscript", this.responseText);
+        }
+    }
+
+
+    function reqExpressionsListener() {
+        transcript_editor.setValue(this.responseText);
+    }
+
+    function refreshOnexpressionsSaved() {
+        localStorage.setItem("lastExpression",
+            expression_editor.getValue());
+        localStorage.setItem("lastTranscript",
+            transcript_editor.getValue());
+        window.location.reload(true);
+    }
+
+
+    // save and reload.
+    function refreshpage() {
+        refreshOnexpressionsSaved()
+    }
+
+    function clearepressions() {
+        expression_editor.setValue('');
+        localStorage.setItem("lastExpression", '');
+        var oReq = new XMLHttpRequest();
+        oReq.open("GET", "api/3");
+        oReq.send();
+    }
+
+    function cleartranscript() {
+        transcript_editor.setValue('');
+        localStorage.setItem("lastTranscript", '');
+        var oReq = new XMLHttpRequest();
+        oReq.open("GET", "api/2");
+        oReq.send();
+    }
+
+    function clearresults() {
+        result_editor.setValue('');
+    }
+
+    function getexpressions() {
+        expression_editor.setValue(
+            localStorage.getItem("lastExpression"));
+    }
+
+    function gettranscript() {
+
+        var oReq = new XMLHttpRequest();
+        oReq.addEventListener("load", reqTranscriptListener);
+        oReq.open("GET", "api/1");
+        oReq.send();
+    }
+
+
+    function cancelpressed() {
+        var oReq = new XMLHttpRequest();
+        oReq.open("POST", "cancel");
+        oReq.send();
+    }
+
+    function evaluateexpression() {
+        var text = expression_editor.getValue();
+        localStorage.setItem("lastExpression", text);
+        var oReq = new XMLHttpRequest();
+        oReq.open("POST", "evaluate");
+        oReq.send(text);
+    }
+
+    function reqFormatListener() {
+        text = this.responseText;
+        if (text == ';; error response') {
+            result_editor.setValue("Re-Formatted Bad.");
+        } else {
+            result_editor.setValue("Re-Formatted Ok.");
+            expression_editor.setValue(this.responseText);
+        }
+    }
+
+    function formatexpression() {
+        var text = expression_editor.getValue();
+        localStorage.setItem("lastExpression", text);
+        var oReq = new XMLHttpRequest();
+        oReq.addEventListener("load", reqFormatListener);
+        oReq.open("POST", "api/5");
+        oReq.send(text);
+    }
+
+    function reqExpressionListener() {
+        result_editor.setValue(this.responseText);
+        gettranscript();
+    }
+
+    function evaluateselectedexpression() {
+        var text = expression_editor.getSelection();
+        var oReq = new XMLHttpRequest();
+        oReq.addEventListener("load", reqExpressionListener);
+        oReq.open("POST", "evaluate");
+        oReq.send(text);
+    }
+
+    function pageloaded() {
+        getexpressions();
+        gettranscript();
+    }
+    // view-source:https://codemirror.net/1/contrib/scheme/
+    function addClass(element, className) {
+        if (!editor.win.hasClass(element, className)) {
+            element.className = ((element.className.split(" ")).concat([className])).join(" ");
+        }
+    }
+    function removeClass(element, className) {
+        if (editor.win.hasClass(element, className)) {
+            var classes = element.className.split(" ");
+            for (var i = classes.length - 1; i >= 0; i--) {
+                if (classes[i] === className) {
+                    classes.splice(i, 1);
+                }
+            }
+            element.className = classes.join(" ");
+        }
+    }
+    var expression_editor = CodeMirror.fromTextArea(expression, {
+        lineNumbers: true, mode: "scheme",
+        autoMatchParens: true,
+        matchBrackets: true,
+        disableSpellcheck: true,
+        lineNumbers: true,
+        tabSize: 2,
+        lineWrapping: true,
+        autofocus: true,
+
+        extraKeys: {
+            "Ctrl-L": function (cm) {
+                clearepressions();
+            },
+            "Alt-F": function (cm) {
+                formatexpression();
+            },
+            "Ctrl-Enter": function (cm) {
+                evaluateexpression();
+            },
+            "Shift-Enter": function (cm) {
+                evaluateselectedexpression();
+            },
+        },
+        markParen: function (span, good) { addClass(span, good ? "good-matching-paren" : "bad-matching-paren"); },
+        unmarkParen: function (span) { removeClass(span, "good-matching-paren"); removeClass(span, "bad-matching-paren"); }
+    });
+    var result_editor = CodeMirror.fromTextArea(result, {
+        lineNumbers: true, mode: "scheme",
+        autoMatchParens: true,
+        disableSpellcheck: true,
+        tabSize: 2,
+        lineWrapping: true,
+        extraKeys: {
+            "Ctrl-L": function (cm) {
+                clearresults();
+            },
+        }
+    });
+    var transcript_editor = CodeMirror.fromTextArea(transcript, {
+        disableSpellcheck: true,
+        lineNumbers: true,
+        tabSize: 2,
+        lineWrapping: true,
+        extraKeys: {
+            "Ctrl-L": function (cm) {
+                cleartranscript();
+            },
+        }
+    });
+
+
+    function handle_events(data) {
+        console.log(event);
+        var text = data;
+
+        // evaluator
+        var eval_reply = "::eval_reply:";
+        if (text.indexOf(eval_reply) !== -1) {
+            console.log("eval reply", event);
+            result_editor.setValue(text.slice(eval_reply.length));
+            return;
+        }
+
+        var eval_pending = "::eval_pending:";
+        if (text.indexOf(eval_pending) !== -1) {
+            console.log("eval pending", event);
+            return;
+        }
+
+
+        // api calls.
+        var api_reply = "::api_reply:";
+        if (text.indexOf(api_reply) !== -1) {
+            console.log("api reply", event);
+
+
+            // api 1 get transcript text response
+            if (text.indexOf(":1:") !== -1) {
+                transcript_editor.setValue(text.slice(api_reply.length + 2));
+                return;
+            }
+
+            // api 2 clear transcript response
+            if (text.indexOf(":2:") !== -1) {
+                localStorage.setItem("lastTranscript", '');
+                transcript_editor.setValue('');
+                return;
+            }
+
+            // api 3 clear expression response
+            if (text.indexOf(":3:") !== -1) {
+                localStorage.setItem("lastExpression", '');
+                expression_editor.setValue('');
+                return;
+            }
+
+            // api 5 format text response
+            if (text.indexOf(":5:") !== -1) {
+                response = text.slice(api_reply.length + 2);
+                if (response == ';; error response') {
+                    result_editor.setValue("Re-Formatted Bad.");
+                } else {
+                    result_editor.setValue("Re-Formatted Ok.");
+                    expression_editor.setValue(response);
+                }
+                return;
+            }
+        }
+
+        // api 7 add text to transcript
+        if (text.indexOf(":7:") !== -1) {
+            var append_text = text.slice(8);
+            transcript_editor.replaceRange(append_text,
+                CodeMirror.Pos(transcript_editor.lastLine()));
+            return;
+        }
+
+        // api 8 eval script
+        if (text.indexOf(":8:") !== -1) {
+            var script_text = text.slice(8);
+            eval(script_text);
+            return;
+        }
+
+        // api 9 web_exec script; with callback.
+        if (text.indexOf(":9:") !== -1) {
+
+            var text = text.slice(8);
+            var callback = text.split("::")[0];
+            var script_text = text.split("::")[1];
+            var result = eval(script_text);
+            var url = "execresponse?callback=";
+            url += callback;
+            if (callback !== "") {
+                var oReq = new XMLHttpRequest();
+                oReq.open("POST", url);
+                oReq.send(result);
+            }
+            return;
+        }
+
+
+        if (text.indexOf("::busy_reply:") !== -1) {
+            console.log("busy reply", event);
+            result_editor.setValue("scheme engine is busy");
+            return;
+        }
+
+        if (text.indexOf("::invalid_request:") !== -1) {
+            console.log("invalid request", event);
+            result_editor.setValue("request was not recognized:\n" + text);
+            return;
+        }
+    }
+
+</script>

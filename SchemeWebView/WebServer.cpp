@@ -176,37 +176,71 @@ void cancel_messages()
 }
 
 
-
 uint64_t event_id;
 std::string create_event(uint64_t offset) {
-
+	static long sleep_time = 0;
 	std::string eventdata;
-	if (event_id == 0)
-		eventdata = "retry: 15000\n\n";
-	else
-	{
-		eventdata += "id: ";
-		eventdata += std::to_string(event_id);
 
-		while (messages.empty())
-		{
+	if (event_id < 4) {
+		if (event_id == 0) {
+			eventdata = "retry: 15000\n\n";
 			Sleep(10);
-		};
-		WaitForSingleObject(g_messages_mutex, INFINITE);
-		if (!messages.empty())
-		{
-			eventdata += "\ndata:" + base64_encode(messages.front()) + "\n\n";
-			messages.pop_front();
+			event_id++;
+			return eventdata;
 		}
-		 
-		ReleaseMutex(g_messages_mutex);
+		else
+			if (event_id == 1) {
+				eventdata = ":wake_up n\n";
+				Sleep(10);
+				event_id++;
+				return eventdata;
+			}
+			else
+				if (event_id == 2) {
+					eventdata = ":and smell the n\n";
+					Sleep(10);
+					event_id++;
+					return eventdata;
+				}
+				else
+					if (event_id == 3) {
+						eventdata = ":coffee.. n\n";
+						Sleep(10);
+						event_id++;
+						return eventdata;
+					}
 	}
+
+	eventdata += "id: ";
+	eventdata += std::to_string(event_id);
+
+	while (messages.empty())
+	{
+		sleep_time += 20;
+		Sleep(20);
+		if (sleep_time > 15000)
+		{
+			sleep_time = 0;
+			eventdata = ":keep_awake n\n";
+			Sleep(20);
+			return eventdata;
+		}
+	};
+
+	WaitForSingleObject(g_messages_mutex, INFINITE);
+	if (!messages.empty())
+	{
+		eventdata += "\ndata:" + base64_encode(messages.front()) + "\n\n";
+		messages.pop_front();
+		Sleep(0);
+	}
+	ReleaseMutex(g_messages_mutex);
+
 
 	event_id++;
 	Sleep(0);
-	return eventdata.c_str();
+	return eventdata;
 }
-
 
 DWORD WINAPI start_server(LPVOID p)
 {
@@ -237,9 +271,53 @@ DWORD WINAPI start_server(LPVOID p)
 				res.set_content(s, "text/html");
 			});
 
+			// response to web exec
+			svr.Get("/execresponse", [](const Request& req, Response& res) {
+
+				std::string call_back_name;
+				std::string value_value;
+
+				for (const auto& param : req.params)
+				{
+					if (param.first == "callback")
+						call_back_name = param.second;
+					if (param.first == "value")
+						value_value = param.second;
+				}
+				if (!call_back_name.empty()) {
+					eval_text(fmt::format("({0} \"{1}\")", call_back_name, value_value).c_str());
+				}
+				res.set_content("::ok:", "text/plain");
+			});
+
+
+			// response to web exec
+			svr.Post("/execresponse", [](const Request& req, Response& res) {
+
+				std::string call_back_name;
+				std::string value_value = req.body;
+
+				for (const auto& param : req.params)
+				{
+					if (param.first == "callback")
+						call_back_name = param.second;
+					if (param.first == "value")
+						value_value = param.second;
+				}
+				if (!call_back_name.empty()) {
+					std::string command = fmt::format(R"(({0} "{1}"))", call_back_name, value_value);
+					eval_text(_strdup(command.c_str()));
+				}
+				res.set_content("::ok:", "text/plain");
+				Sleep(0);
+			});
+
+
 			svr.Get("/stop",
 				[&](const Request& /*req*/, Response& /*res*/) { svr.stop(); });
 
+			svr.Get("/cancel",
+				[&](const Request& /*req*/, Response& /*res*/) { cancel_pressed(); });
 
 			svr.Post("/evaluate",
 				[&](const Request& req, Response& res)
@@ -250,6 +328,8 @@ DWORD WINAPI start_server(LPVOID p)
 				}
 				res.set_content("::eval_pending:", "text/plain");
 			});
+
+
 
 			svr.Get("/logsON",
 				[&](const Request& /*req*/, Response& /*res*/) { server_logging = true; });
@@ -264,6 +344,30 @@ DWORD WINAPI start_server(LPVOID p)
 			svr.Get("/dump", [](const Request& req, Response& res) {
 				res.set_content(dump_headers(req.headers), "text/plain");
 			});
+
+			// response to web-value
+			svr.Get("/definevalue", [](const Request& req, Response& res) {
+
+				std::string value_name;
+				std::string value_value;
+
+				for (const auto& param : req.params)
+				{
+					if (param.first == "name")
+						value_name = param.second;
+					if (param.first == "value")
+						value_value = param.second;
+				}
+				if (!value_name.empty() && !value_value.empty()) {
+
+
+					eval_text(_strdup(fmt::format("(define {0} \"{1}\") \"{1}\"", value_name, value_value).c_str()));
+
+				}
+				res.set_content("::ok:", "text/plain");
+			});
+
+
 
 			// api call n (0..63), v1.(.v4)
 			// generic API call handler with call number and params.
@@ -314,6 +418,8 @@ DWORD WINAPI start_server(LPVOID p)
 				return;
 			});
 
+
+
 			// generic API call handler with call number and params.
 			svr.Post(R"(/api/(\d+))", [](const Request& req, Response& res) {
 				const auto numbers = req.matches[1];
@@ -362,6 +468,9 @@ DWORD WINAPI start_server(LPVOID p)
 				res.content_producer = create_event;
 				res.set_header("Content-Type", "text/event-stream");
 			});
+
+			svr.Get("/cancel",
+				[&](const Request& /*req*/, Response& /*res*/) { cancel_pressed(); });
 
 			svr.set_logger([](const Request& req, const Response& res) {
 				if (server_logging) {

@@ -129,11 +129,6 @@ HRESULT web_view_navigate(const std::string& url) {
 	return -1;
 }
 
-void web_view_exec(const std::wstring& script) {
- 
-}
-
- 
 // post back in; from any thread.
 std::deque<std::string> messages;
 
@@ -143,17 +138,6 @@ ptr scheme_post_message(const char* msg) {
 	ReleaseMutex(g_messages_mutex);
 	return Strue;
 }
-
-// scheme call into web view.
-ptr scheme_web_view_exec(const char* cmd, char* cbname)
-{
-	// not callback capable yet
-	WaitForSingleObject(g_messages_mutex, INFINITE);
-	messages.emplace_back(cmd);
-	ReleaseMutex(g_messages_mutex);
-	return Strue;
-}
-
 
 
 std::wstring wide_get_exe_folder()
@@ -351,8 +335,10 @@ int CALLBACK WinMain(
 }
 
 // cancel pending messages and commands.
+bool cancelling = false;
 void cancel_pressed()
 {
+	cancelling = true;
 	cancel_commands();
 	cancel_messages();
 }

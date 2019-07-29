@@ -77,6 +77,12 @@ extern "C" __declspec(dllexport) ptr EscapeKeyPressed()
 {
 	if (GetAsyncKeyState(VK_ESCAPE) != 0)
 	{
+		cancelling = false;
+		return Strue;
+	}
+	if( cancelling)
+	{
+		cancelling = false;
 		return Strue;
 	}
 	return Sfalse;
@@ -157,7 +163,8 @@ int start_scheme_engine() {
 		Sforeign_symbol("scheme_home_page", static_cast<ptr>(scheme_home_page));
 		Sforeign_symbol("start_web_server", static_cast<ptr>(scheme_start_web_server));
 		Sforeign_symbol("EscapeKeyPressed", static_cast<ptr>(EscapeKeyPressed));
-		Sforeign_symbol("web_exec", static_cast<ptr>(scheme_web_view_exec));
+ 
+ 
 		Sforeign_symbol("web_load_document", static_cast<ptr>(scheme_load_document_from_file));
 		Sforeign_symbol("scheme_wait", static_cast<ptr>(scheme_wait));
 		Sforeign_symbol("scheme_yield", static_cast<ptr>(scheme_yield));
