@@ -48,27 +48,23 @@
 <body onload="pageloaded()">
     <div class="page-container">
         <div class="btn-group" style="margin-left: 12px;">
+            
             <button class="btn btn-light btn-sm">
                 <a href="https://www.scheme.com/tspl4/" target="_blank">
                     <i class="fa fa-book" aria-hidden="true" style="color: #5c809e"></i>
                 </a>
             </button>
-            <button class="btn btn-light btn-sm">
-                <a href="#" onclick='evaluateexpression();return false;'>
-                    <i class="fa fa-play" aria-hidden="true" style="color: #5c809e"></i>
-                </a>
-            </button>
-            <button class="btn btn-light btn-sm">
 
-                <a href="#" onclick='refreshpage();return false;'>
-                    <i class="fa fa-refresh" aria-hidden="true" style="color: #5c809e"></i>
-                </a>
+            <button class="btn btn-light btn-sm" onclick='evaluateexpression();return false;'>
+                <i class="fa fa-play" aria-hidden="true" style="color: #5c809e"></i>
             </button>
 
-            <button class="btn btn-light btn-sm">
-                <a href="#" onclick='cancelpressed();return false;'>
-                    <i class="fa fa-stop-circle" aria-hidden="true" style="color: #5c809e"></i>
-                </a>
+            <button class="btn btn-light btn-sm" onclick='refreshpage();return false;'>
+                <i class="fa fa-refresh" aria-hidden="true" style="color: #5c809e"></i>
+            </button>
+
+            <button class="btn btn-light btn-sm" onclick='cancelpressed();return false;'>
+                <i class="fa fa-stop-circle" aria-hidden="true" style="color: #5c809e"></i>
             </button>
 
             <button class="btn btn-light btn-sm">
@@ -83,6 +79,9 @@
                 </a>
             </button>
 
+            <button class="btn btn-light btn-sm" onclick='clearpressed();return false;'>
+                <i aria-hidden="true" style="color: #5c809e">Clear</i>
+            </button>
 
         </div>
 
@@ -177,6 +176,11 @@
 
     function clearresults() {
         result_editor.setValue('');
+    }
+
+    function clearpressed() {
+        clearresults();
+        cleartranscript();
     }
 
     function getexpressions() {

@@ -26,41 +26,41 @@ void  wait(const long ms);
 // this queues for engine access on a single thread
 bool spin(const int turns)
 {
-	auto dw_wait_result = WaitForSingleObject(g_script_mutex, 15);
-	auto time_out = turns;
-	while (--time_out > 0 && (dw_wait_result == WAIT_TIMEOUT))
-	{
-		Sleep(25);
-		dw_wait_result = WaitForSingleObject(g_script_mutex, 15);
-	}
-	//
-	if (time_out == 0)
-	{
-		// we are out of turns. 
-		return true;
-	}
+	auto dw_wait_result = WaitForSingleObject(g_script_mutex, INFINITE);
+	// auto time_out = turns;
+	// while (--time_out > 0 && (dw_wait_result == WAIT_TIMEOUT))
+	// {
+	// 	Sleep(25);
+	// 	dw_wait_result = WaitForSingleObject(g_script_mutex, 15);
+	// }
+	// //
+	// if (time_out == 0)
+	// {
+	// 	// we are out of turns. 
+	// 	return true;
+	// }
 	return false;
 }
 
 // only sensible while still in UI thread.
 // this attempts to keep processing events while waiting,
-bool spin_wait(const int turns)
-{
-	auto dw_wait_result = WaitForSingleObject(g_script_mutex, 5);
-	auto time_out = turns;
-	while (--time_out > 0 && (dw_wait_result == WAIT_TIMEOUT))
-	{
-		wait(50);
-		dw_wait_result = WaitForSingleObject(g_script_mutex, 5);
-	}
-	//
-	if (time_out == 0)
-	{
-		// we are out of turns. 
-		return true;
-	}
-	return false;
-}
+// bool spin_wait(const int turns)
+// {
+// 	auto dw_wait_result = WaitForSingleObject(g_script_mutex, 5);
+// 	auto time_out = turns;
+// 	while (--time_out > 0 && (dw_wait_result == WAIT_TIMEOUT))
+// 	{
+// 		wait(50);
+// 		dw_wait_result = WaitForSingleObject(g_script_mutex, 5);
+// 	}
+// 	//
+// 	if (time_out == 0)
+// 	{
+// 		// we are out of turns. 
+// 		return true;
+// 	}
+// 	return false;
+// }
 
 
 // https://github.com/yhirose/cpp-httplib
@@ -135,8 +135,9 @@ std::string do_scheme_eval(const char* text)
 std::string do_scheme_api_call(const int n, std::string v1)
 {
 	std::string result;
-
+	WaitForSingleObject(g_script_mutex, INFINITE);
 	const auto scheme_string = CALL2("api-call", Sfixnum(n), Sstring(v1.c_str()));
+	ReleaseMutex(g_script_mutex);
 	if (scheme_string != Snil && Sstringp(scheme_string))
 	{
 		result = Assoc::Sstring_to_charptr(scheme_string);
@@ -164,6 +165,31 @@ static std::string base64_encode(const std::string& in) {
 	return out;
 }
 
+
+uint64_t event_id;
+std::string create_event(uint64_t offset) {
+
+	std::string eventdata = ":keepalive";
+	for (int i = 1; i < 200; i++) {
+		WaitForSingleObject(g_messages_mutex, INFINITE);
+		if (messages.empty())
+		{
+			ReleaseMutex(g_messages_mutex);
+			Sleep(100);
+		}
+		else {
+			eventdata = fmt::format("id:{0}\ndata:{1}\n\n", event_id++, base64_encode(messages.front()));
+			messages.pop_front();
+			ReleaseMutex(g_messages_mutex);
+			return eventdata;
+		}
+	}
+	event_id++;
+	return eventdata;
+}
+
+
+
 void cancel_messages()
 {
 	WaitForSingleObject(g_messages_mutex, INFINITE);
@@ -176,71 +202,8 @@ void cancel_messages()
 }
 
 
-uint64_t event_id;
-std::string create_event(uint64_t offset) {
-	static long sleep_time = 0;
-	std::string eventdata;
-
-	if (event_id < 4) {
-		if (event_id == 0) {
-			eventdata = "retry: 15000\n\n";
-			Sleep(10);
-			event_id++;
-			return eventdata;
-		}
-		else
-			if (event_id == 1) {
-				eventdata = ":wake_up n\n";
-				Sleep(10);
-				event_id++;
-				return eventdata;
-			}
-			else
-				if (event_id == 2) {
-					eventdata = ":and smell the n\n";
-					Sleep(10);
-					event_id++;
-					return eventdata;
-				}
-				else
-					if (event_id == 3) {
-						eventdata = ":coffee.. n\n";
-						Sleep(10);
-						event_id++;
-						return eventdata;
-					}
-	}
-
-	eventdata += "id: ";
-	eventdata += std::to_string(event_id);
-
-	while (messages.empty())
-	{
-		sleep_time += 20;
-		Sleep(20);
-		if (sleep_time > 15000)
-		{
-			sleep_time = 0;
-			eventdata = ":keep_awake n\n";
-			Sleep(20);
-			return eventdata;
-		}
-	};
-
-	WaitForSingleObject(g_messages_mutex, INFINITE);
-	if (!messages.empty())
-	{
-		eventdata += "\ndata:" + base64_encode(messages.front()) + "\n\n";
-		messages.pop_front();
-		Sleep(0);
-	}
-	ReleaseMutex(g_messages_mutex);
 
 
-	event_id++;
-	Sleep(0);
-	return eventdata;
-}
 
 DWORD WINAPI start_server(LPVOID p)
 {
@@ -326,7 +289,8 @@ DWORD WINAPI start_server(LPVOID p)
 				if (req.body.c_str() != nullptr) {
 					eval_text(_strdup(response.c_str()));
 				}
-				res.set_content("::eval_pending:", "text/plain");
+				res.status = 200;
+				res.set_content("", "text/plain");
 			});
 
 
@@ -375,21 +339,7 @@ DWORD WINAPI start_server(LPVOID p)
 				const auto numbers = req.matches[1];
 				std::string query;
 
-				// acquire script lock access or fail..
-				if (spin(10))
-				{
-					res.set_content("timed_out:busy", "text/plain");
-					return;
-				}
-				try
-				{
-					const auto n = std::stoi(numbers);
-					if (n > 63 || n < 0)
-					{
-						res.set_content("exceed api call slots n must be from 0-63", "text/plain");
-						return;
-					}
-
+			 
 					std::string v1;
 
 					for (const auto& param : req.params)
@@ -398,6 +348,14 @@ DWORD WINAPI start_server(LPVOID p)
 							v1 = param.second;
 
 					}
+					const auto n = std::stoi(numbers);
+					if (n > 63 || n < 0)
+					{
+						res.status = 500;
+						res.set_content("exceed api call slots n must be from 0-63", "text/plain");
+						return;
+					}
+				 
 					const auto result = do_scheme_api_call(n, v1);
 					if (result.empty())
 					{
@@ -407,31 +365,14 @@ DWORD WINAPI start_server(LPVOID p)
 
 					res.set_content(result, "text/plain");
 					return;
-				}
-				catch (...)
-				{
-					ReleaseMutex(g_script_mutex);
-				}
-
-				res.status = 500;
-				res.set_content("Error", "text/plain");
-				return;
 			});
-
-
 
 			// generic API call handler with call number and params.
 			svr.Post(R"(/api/(\d+))", [](const Request& req, Response& res) {
 				const auto numbers = req.matches[1];
 				std::string query;
 
-				// acquire script lock access or fail..
-				if (spin(10))
-				{
-					res.set_content("timed_out", "text/plain");
-				}
-				try
-				{
+			 
 					const auto n = std::stoi(numbers);
 					if (n > 63 || n < 0)
 					{
@@ -447,19 +388,10 @@ DWORD WINAPI start_server(LPVOID p)
 						res.set_content(";; error response", "text/plain");
 						return;
 					}
+
 					res.set_content(result, "text/plain");
 					return;
-
-				}
-				catch (...)
-				{
-
-					ReleaseMutex(g_script_mutex);
-				}
-
-				res.status = 500;
-				res.set_content("Error", "text/plain");
-				return;
+ 
 
 			});
 

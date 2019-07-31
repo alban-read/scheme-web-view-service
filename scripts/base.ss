@@ -339,3 +339,11 @@
        (string-append "draw_line ( ~s, ~s, ~s, ~s, ~s)")
             x y x1 y1 w)])
       (web-eval cmd))))
+
+
+ (define fill-rect
+  (lambda (x y w h)
+    (let ([cmd (format
+       (string-append "fill_rect ( ~s, ~s, ~s, ~s)")
+            x y w h)])
+      (web-eval cmd))))

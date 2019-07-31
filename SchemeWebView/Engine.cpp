@@ -13,8 +13,8 @@
 
 
 HANDLE g_script_mutex;
- 
- 
+
+
 std::string get_exe_folder()
 {
 	char buffer[MAX_PATH];
@@ -30,9 +30,9 @@ void load_script_if_exists(const std::string& script_name)
 	if (!(INVALID_FILE_ATTRIBUTES == GetFileAttributesA(locate_script.c_str()) &&
 		GetLastError() == ERROR_FILE_NOT_FOUND))
 	{
-	 
+
 		CALL1("load", Sstring(locate_script.c_str()));
- 
+
 	}
 }
 
@@ -80,7 +80,7 @@ extern "C" __declspec(dllexport) ptr EscapeKeyPressed()
 		cancelling = false;
 		return Strue;
 	}
-	if( cancelling)
+	if (cancelling)
 	{
 		cancelling = false;
 		return Strue;
@@ -107,31 +107,23 @@ void cancel_commands()
 DWORD WINAPI  process_commands(LPVOID x)
 {
 	while (true) {
-		while (commands.empty())
-		{
-			Sleep(10);
-		}
-	
-		std::string eval;
+
 		WaitForSingleObject(g_commands_mutex, INFINITE);
-	 
-		// otherwise process them
-		if (!commands.empty()) {
-			
-			eval = commands.front();
+		if (commands.empty())
+		{
+			ReleaseMutex(g_commands_mutex);
+			Sleep(80);
+		}
+		else {
+
+			std::string eval = commands.front();
 			commands.pop_front();
-		}
-		ReleaseMutex(g_commands_mutex);
+			ReleaseMutex(g_commands_mutex);
 
-		WaitForSingleObject(g_script_mutex, INFINITE);
-		try {
+			WaitForSingleObject(g_script_mutex, INFINITE);
 			CALL1("eval->string-post-back", Sstring(eval.c_str()));
+			ReleaseMutex(g_script_mutex);
 		}
-		catch (...) {
-
-		}
-		ReleaseMutex(g_script_mutex);
-		::Sleep(20);
 	}
 }
 
@@ -148,7 +140,7 @@ int start_scheme_engine() {
 	try
 	{
 		g_script_mutex = CreateMutex(nullptr, FALSE, nullptr);
- 
+
 		Sscheme_init(ABNORMAL_EXIT);
 
 		if (!register_boot_file("\\boot\\petite.boot") ||
@@ -163,16 +155,16 @@ int start_scheme_engine() {
 		Sforeign_symbol("scheme_home_page", static_cast<ptr>(scheme_home_page));
 		Sforeign_symbol("start_web_server", static_cast<ptr>(scheme_start_web_server));
 		Sforeign_symbol("EscapeKeyPressed", static_cast<ptr>(EscapeKeyPressed));
- 
- 
+
+
 		Sforeign_symbol("web_load_document", static_cast<ptr>(scheme_load_document_from_file));
 		Sforeign_symbol("scheme_wait", static_cast<ptr>(scheme_wait));
 		Sforeign_symbol("scheme_yield", static_cast<ptr>(scheme_yield));
 		Sforeign_symbol("scheme_post_message", static_cast<ptr>(scheme_post_message));
 		Sforeign_symbol("scheme_capture_screen", static_cast<ptr>(scheme_capture_screen));
 		Sforeign_symbol("scheme_get_source", static_cast<ptr>(scheme_get_source));
-		
- 
+
+
 		// base prepare, env - configure, init - start
 		load_script_if_exists("\\scripts\\base.ss");
 		load_script_if_exists("\\scripts\\env.ss");

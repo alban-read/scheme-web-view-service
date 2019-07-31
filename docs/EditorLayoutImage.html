@@ -36,27 +36,22 @@
         <div class="btn-group" style="margin-left: 12px;">
 
             <button class="btn btn-light btn-sm">
-
                 <a href="https://www.scheme.com/tspl4/" target="_blank">
                     <i class="fa fa-book" aria-hidden="true" style="color: #5c809e"></i>
                 </a>
             </button>
-            <button class="btn btn-light btn-sm">
-                <a href="#" onclick='evaluateexpression();return false;'>
-                    <i class="fa fa-play" aria-hidden="true" style="color: #5c809e"></i>
-                </a>
-            </button>
-            <button class="btn btn-light btn-sm">
 
-                <a href="#" onclick='refreshpage();return false;'>
-                    <i class="fa fa-refresh" aria-hidden="true" style="color: #5c809e"></i>
-                </a>
+
+            <button class="btn btn-light btn-sm" onclick='evaluateexpression();return false;'>
+                <i class="fa fa-play" aria-hidden="true" style="color: #5c809e"></i>
             </button>
 
-            <button class="btn btn-light btn-sm">
-                <a href="#" onclick='cancelpressed();return false;'>
-                    <i class="fa fa-stop-circle" aria-hidden="true" style="color: #5c809e"></i>
-                </a>
+            <button class="btn btn-light btn-sm" onclick='refreshpage();return false;'>
+                <i class="fa fa-refresh" aria-hidden="true" style="color: #5c809e"></i>
+            </button>
+
+            <button class="btn btn-light btn-sm" onclick='cancelpressed();return false;'>
+                <i class="fa fa-stop-circle" aria-hidden="true" style="color: #5c809e"></i>
             </button>
 
             <button class="btn btn-light btn-sm">
@@ -71,10 +66,8 @@
                 </a>
             </button>
 
-            <button class="btn btn-light btn-sm">
-                <a href="#" onclick='refreshCanvas();return false;'>
-                    <i aria-hidden="true" style="color: #5c809e">Clear</i>
-                </a>
+            <button class="btn btn-light btn-sm" onclick='clearpressed();return false;'>
+                <i aria-hidden="true" style="color: #5c809e">Clear</i>
             </button>
 
 
@@ -187,6 +180,7 @@
         result_editor.setValue('');
     }
 
+
     function getexpressions() {
         expression_editor.setValue(
             localStorage.getItem("lastExpression"));
@@ -239,13 +233,6 @@
         gettranscript();
     }
 
-    function cancelpressed() {
-        console.log("cancel");
-        var oReq = new XMLHttpRequest();
-        oReq.open("POST", "cancel");
-        oReq.send();
-    }
-
 
     function evaluateselectedexpression() {
         var text = expression_editor.getSelection();
@@ -253,11 +240,6 @@
         oReq.addEventListener("load", reqExpressionListener);
         oReq.open("POST", "evaluate");
         oReq.send(text);
-    }
-
-    function pageloaded() {
-        getexpressions();
-        gettranscript();
     }
 
     // access to draw on image.
@@ -282,6 +264,18 @@
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
+
+    function fill_rect(x, y, w, h) {
+        ctx.fillRect(x, y, w, h);
+    }
+
+
+    function clearpressed() {
+        clearresults();
+        cleartranscript();
+        refreshCanvas(); 
+    }
+
 
     function pageloaded() {
         getexpressions();

@@ -109,17 +109,7 @@ ptr scheme_wait(int ms)
 
 ptr scheme_yield(int ms)
 {
-	// yield and wait
-	ReleaseMutex(g_script_mutex);
-	wait(ms);
-	// now we try to get back to life
-	auto dw_wait_result = WaitForSingleObject(g_script_mutex, 5);
-	while (dw_wait_result == WAIT_TIMEOUT)
-	{
-		wait(10);
-		dw_wait_result = WaitForSingleObject(g_script_mutex, 5);
-	}
-	// finally we can run again.
+
 	return Strue;
 }
 
