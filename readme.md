@@ -61,4 +61,4 @@ https://github.com/cisco/ChezScheme
 
 ---
 
-I also have a version of this application that use and embedded Windows 10 control. 
+I also have a version of this application that uses the latest embedded Windows 10 webview control. 
